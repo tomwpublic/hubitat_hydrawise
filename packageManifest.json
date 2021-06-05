@@ -1,0 +1,35 @@
+  
+{
+  "packageName": "hubitat_hydrawise",
+  "author": "tomw",
+  "version": "1.0.0",
+  "minimumHEVersion": "2.1.9",
+  "dateReleased": "2020-06-20",
+  "drivers": [
+    {
+      "id": "c593dbb0-af98-42bc-8b84-a2218f225fd7",
+      "name": "Hunter Hydrawise Controller",
+      "namespace": "tomw",
+      "location": "...",
+      "required": true
+    },
+    {
+      "id": "5f0e0ba6-f4e1-4179-b082-683ec34d6260",
+      "name": "Hunter Hydrawise System",
+      "namespace": "tomw",
+      "location": "...",
+      "required": true
+    },
+    {
+      "id": "66f24c98-4145-48f5-ba3f-f632fd2c2594",
+      "name": "Hunter Hydrawise Zone",
+      "namespace": "tomw",
+      "location": "...",
+      "required": true
+    }
+  ],
+  "licenseFile": "...",
+  "releaseNotes": "1.0.0 - @tomw and @JustinL - Initial release.",
+  "documentationLink": "...",
+  "communityLink": "..."
+}

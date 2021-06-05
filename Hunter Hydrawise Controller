@@ -1,0 +1,254 @@
+/*
+
+Copyright 2020 - tomw and JustinL
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+-------------------------------------------
+
+Change history:
+
+1.0.0 - @tomw and @JustinL - Initial release
+
+ */
+
+metadata
+{
+    definition(name: "Hunter Hydrawise Controller", namespace: "tomw", author: "tomw, lnjustin", importUrl: "")
+    {
+        capability "Configuration"
+        capability "Refresh"
+        
+        attribute "name", "string"
+        attribute "last_contact", "string"
+        attribute "serial_number", "string"
+        attribute "status", "string"
+        
+        command "runAllZones", ["number"]
+        command "stopAllZones"
+        command "suspendAllZones", ["string"]     // format: yyyy-mm-dd
+    }
+}
+
+preferences
+{
+    section
+    {
+        input "api_key", "text", title: "API keys can be obtained from your Hydrawise account under My Account -> Generate API Key.", required: true
+        input "controller_id", "text", title: "The unique identifier for your controller. This is required when your account has multiple controllers.", required: false
+        input name: "logEnable", type: "bool", title: "Enable debug logging", defaultValue: true
+    }
+}
+
+def logDebug(msg) 
+{
+    if (logEnable)
+    {
+        log.debug(msg)
+    }
+}
+
+def updated()
+{
+    logDebug("Hunter Hydrawise Controller: updated()")
+
+    configure()
+}
+
+def configure()
+{
+    logDebug("Hunter Hydrawise Controller: configure()")
+    
+    unschedule()
+    state.clear()
+    
+    refresh()
+    
+    //create all zone devices
+    createChildren()
+}
+
+def refresh()
+{
+    logDebug("Hunter Hydrawise Controller: refresh()")
+    
+    // update controller info
+    def suffix = "customerdetails.php?api_key=${getApi_key()}"
+    parse_customerdetails(httpGetExec(suffix))
+    
+    // update zone info
+    suffix = "statusschedule.php?api_key=${getApi_key()}"
+    if(null != getController_id())
+    {
+        suffix += "&controller_id=${getController_id()}"
+    }    
+    parse_statusschedule(httpGetExec(suffix))
+    
+    updateChildren()
+    
+    runIn(state.nextpoll, refresh)
+}
+
+def createChildren()
+{
+    logDebug("Hunter Hydrawise Controller: createChildren()")
+    for (relay in getRelays())
+    {
+        child = addChildDevice("Hunter Hydrawise Zone", relay.relay_id.toString(), [label:"Zone ${relay.relay.toString()}", isComponent:false, name:"${relay.relay_id.toString()}"])
+        child.updateSetting("api_key", getApi_key())
+        child.updateSetting("controller_id", getController_id())
+        child.updateSetting("relay_id", relay.relay_id)
+        child.updateRelayState(relay)
+    }
+}
+
+def updateChildren()
+{
+    // update relays from controller, to reduce API calls. Hydrawise limits to 30 calls in 5 minutes
+    logDebug("Hunter Hydrawise Controller: updateChildren()")
+    for (relay in getRelays())
+    {
+        child = getChildDevice(relay.relay_id.toString())
+        if (child) child.updateRelayState(relay)
+    }
+}
+
+def deleteChildren()
+{
+    for(child in getChildDevices())
+    {
+        deleteChildDevice(child.deviceNetworkId)
+    }
+}
+
+def getRelays()
+{
+    return state.relays
+}
+
+def getApi_key()
+{
+    return api_key
+}
+
+def getController_id()
+{
+    return controller_id
+}
+
+def parse_customerdetails(resp)
+{
+    logDebug("Hunter Hydrawise Controller: parse_customerdetails()")
+    
+    if(null == resp)
+    {
+        return
+    }
+    
+    for (controller in resp.controllers)
+    {
+        if (controller.controller_id.toString() == controller_id)
+        {
+            sendEvent(name: "name", value: controller.name)
+            sendEvent(name: "last_contact", value: controller.last_contact)
+            sendEvent(name: "serial_number", value: controller.serial_number)
+            sendEvent(name: "status", value: controller.status)
+        }
+    }
+}
+
+def parse_statusschedule(resp)
+{
+    logDebug("Hunter Hydrawise Controller: parse_statusschedule()")
+    
+    if(null == resp)
+    {
+        return
+    }
+    
+    state.lastmessage = resp.message
+    state.nextpoll = resp.nextpoll
+    state.controllertime = resp.time
+    state.relays = resp.relays
+    state.sensors = resp.sensors
+}
+
+def runAllZones(runDuration) {
+    def suffix = "setzone.php?action=runall&period_id=999&custom=${runDuration}&api_key=${api_key}"
+    if(null != getController_id())
+    {
+        suffix += "&controller_id=${controller_id}"
+    }
+    
+    resp = httpGetExec(suffix)
+    if (resp) {
+        logDebug(resp.message)
+    }
+    refresh()
+}
+
+def stopAllZones() {
+    def suffix = "setzone.php?action=stopall&api_key=${api_key}"
+    if(null != getController_id())
+    {
+        suffix += "&controller_id=${controller_id}"
+    }
+    
+    resp = httpGetExec(suffix)
+    if (resp) {
+        logDebug(resp.message)
+    }
+    refresh()
+}
+
+def suspendAllZones(suspendDateStr) {
+    logDebug("Hunter Hydrawise Controller: suspendAllZones()")
+        
+    def pattern = "yyyy-MM-dd"
+    def date = Date.parse(pattern, suspendDateStr)
+    
+    // suspend zone
+    def suffix = "setzone.php?action=suspendall&period_id=999&custom=${date.getTime()}&api_key=${api_key}"
+    if(controller_id)
+    {
+        suffix += "&controller_id=${controller_id}"
+    }
+    
+    resp = httpGetExec(suffix)
+    if (resp) {
+        logDebug(resp.message)
+    }
+    refresh()
+}
+
+def httpGetExec(suffix)
+{
+    logDebug("Hunter Hydrawise Controller: httpGetExec(${suffix})")
+    
+    try
+    {
+        getString = "https://api.hydrawise.com/api/v1/" + suffix
+        httpGet(getString.replaceAll(' ', '%20'))
+        { resp ->
+            if (resp.data)
+            {
+                logDebug("resp.data = ${resp.data}")
+                return resp.data
+            }
+        }
+    }
+    catch (Exception e)
+    {
+        log.warn "Hunter Hydrawise Controller httpGetExec() failed: ${e.message}"
+    }
+}

@@ -1,0 +1,294 @@
+/*
+
+Copyright 2020 - tomw and JustinL
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+-------------------------------------------
+
+Change history:
+
+1.0.0 - @tomw and @JustinL - Initial release
+
+ */
+
+metadata
+{
+    definition(name: "Hunter Hydrawise Zone", namespace: "tomw", author: "tomw, lnjustin", importUrl: "")
+    {        
+        capability "Configuration"
+        capability "Refresh"
+        capability "Valve"
+        command "runZone", ["number"]
+        command "suspendZone", ["string"]                    // format: yyyy-mm-dd
+        attribute "currentRunDurationLeft", "number"       // relay.run when run is in progress
+        attribute "currentRunDurationLeftStr", "string"    // relay.run in friendly string format when run is in progress
+        attribute "nextRunStartTimestamp", "string"        // relay.time, converted to timestamp, when run is NOT in progress
+        attribute "nextRunStartTimeStr", "string"          // relay.timestr when run is not in progress
+        attribute "nextRunSecsUntilStart", "number"        // relay.time when run is NOT in progress
+        attribute "nextRunDuration", "number"              // relay.run when run is NOT in progress
+        attribute "nextRunDurationStr", "string"           // relay.run in friendldy string format when run is NOT in progress
+    }
+    
+    // tile definitions
+    tiles(scale: 2) {
+		multiAttributeTile(name:"valve", type: "generic", width: 6, height: 4, canChangeIcon: true){
+			tileAttribute ("device.valve", key: "PRIMARY_CONTROL") {
+				attributeState "open", label: '${name}', action: "valve.close", icon: "st.valves.water.open", backgroundColor: "#00A0DC", nextState:"closing"
+				attributeState "closed", label: '${name}', action: "valve.open", icon: "st.valves.water.closed", backgroundColor: "#ffffff", nextState:"opening"
+				attributeState "opening", label: '${name}', action: "valve.close", icon: "st.valves.water.open", backgroundColor: "#00A0DC"
+				attributeState "closing", label: '${name}', action: "valve.open", icon: "st.valves.water.closed", backgroundColor: "#ffffff"
+			}
+		}
+
+		standardTile("refresh", "device.valve", width: 2, height: 2, inactiveLabel: false, decoration: "flat") {
+			state "default", label:'', action:"refresh.refresh", icon:"st.secondary.refresh"
+		}
+
+		main "valve"
+		details(["valve","refresh"])
+	}
+}
+
+preferences
+{
+    section
+    {
+        input "api_key", "text", title: "API keys can be obtained from your Hydrawise account under My Account -> Generate API Key.", required: true
+        input "controller_id", "text", title: "The unique identifier for your controller. This is required when your account has multiple controllers.", required: false
+        input "relay_id", "text", title: "Unique ID for this zone.", required: true
+        input "default_run_duration", "number", title: "Default Run Duration in Seconds", defaultValue: 600
+        input name: "logEnable", type: "bool", title: "Enable debug logging", defaultValue: true
+    }
+}
+
+def logDebug(msg) 
+{
+    if (logEnable)
+    {
+        log.debug(msg)
+    }
+}    
+
+def updated()
+{
+    logDebug("Hunter Hydrawise Zone: updated()")
+
+    configure()
+}
+
+def parse(String description)
+{
+    logDebug(description)
+}
+
+def configure()
+{
+    logDebug("Hunter Hydrawise Zone: configure()")
+    
+    state.clear()
+    
+    refresh()
+}
+
+def refresh()
+{
+    logDebug("Hunter Hydrawise Zone: refresh()")
+    
+    def suffix = "statusschedule.php?api_key=${api_key}"
+    if(controller_id)
+    {
+        suffix += "&controller_id=${controller_id}"
+    }
+    
+    parse_statusschedule(httpGetExec(suffix))
+}
+
+def parse_statusschedule(resp)
+{
+    logDebug("Hunter Hydrawise Zone: parse_statusschedule()")
+    
+    for (relay in resp.relays)
+    {
+        if (relay.relay_id.toString() == relay_id)
+        {
+            updateRelayState(relay)
+            return
+        }
+        else
+        {
+            logDebug("${relay_id} not found")
+            return
+        }
+    }
+}
+
+def close()
+{
+    logDebug("Hunter Hydrawise Zone: close()")
+    
+    // stop zone
+    def suffix = "setzone.php?action=stop&relay_id=${relay_id}&api_key=${api_key}"
+    if(controller_id)
+    {
+        suffix += "&controller_id=${controller_id}"
+    }
+    
+    resp = httpGetExec(suffix)
+    if (resp) {
+        logDebug(resp.message)
+    }
+    refresh()
+}
+
+def open()
+{
+    logDebug("Hunter Hydrawise Zone: open()")
+    runZone(default_run_duration)
+}
+
+def runZone(secondsToRun)
+{
+    logDebug("Hunter Hydrawise Zone: runZone()")
+    
+    // start zone
+    def suffix = "setzone.php?action=run&relay_id=${relay_id}&period_id=999&custom=${secondsToRun}&api_key=${api_key}"
+    if(controller_id)
+    {
+        suffix += "&controller_id=${controller_id}"
+    }
+    
+    resp = httpGetExec(suffix)
+    if (resp) {
+        logDebug(resp.message)
+    }
+    refresh()
+}
+
+def suspendZone(suspendDateStr)
+{
+    logDebug("Hunter Hydrawise Zone: suspendZone()")
+        
+    def pattern = "yyyy-MM-dd"
+    def date = Date.parse(pattern, suspendDateStr)
+    
+    // suspend zone
+    def suffix = "setzone.php?action=suspend&relay_id=${relay_id}&period_id=999&custom=${date.getTime()}&api_key=${api_key}"
+    if(controller_id)
+    {
+        suffix += "&controller_id=${controller_id}"
+    }
+    
+    resp = httpGetExec(suffix)
+    if (resp) {
+        logDebug(resp.message)
+    }
+    refresh()
+}
+
+def updateRelayState(relay)
+{
+    logDebug("Hunter Hydrawise Zone: updateRelayState(relay)")
+     
+    if (relay.time != 1) {    // zone not running
+        logDebug("Hunter Hydrawise Zone: updating next run attribute")
+                
+         if (device.currentValue('valve') == "open") {
+            // Zone not running but valve state being open means the zone was stopped from the cloud
+	        // So update relay state in HE to reflect the value being closed. Best we can do is assume the zone just stopped now.
+            sendEvent(name: "valve", value: "close")
+        }
+        
+        Date nextRunStartTimestamp = new Date()
+        dateInMS = nextRunStartTimestamp.getTime()
+        numMSUntilStart = relay.time * 1000
+        long dateOfNextStartInMS = dateInMS + numMSUntilStart
+        nextRunStartTimestamp.setTime(dateOfNextStartInMS)
+        
+        sendEvent(name: "nextRunStartTimestamp", value: nextRunStartTimestamp.toString())
+        sendEvent(name: "nextRunStartTimeStr", value: relay.timestr) 
+        sendEvent(name: "nextRunSecsUntilStart", value: relay.time) 
+        sendEvent(name: "nextRunDuration", value: relay.run) 
+        sendEvent(name: "nextRunDurationStr", value: convertSecstoSimpleStr(relay.run)) 
+        
+        state.nextRunStartTimestamp = nextRunStartTimestamp
+    }
+    else if (relay.time == 1) {
+        
+        if (device.currentValue('valve') == "closed") {
+               // zone just started from cloud, so update valve status in HE to reflect open. Best we can do is assume the zone just started now.
+            sendEvent(name: "valve", value: "open")
+        }
+
+        // while zone running, nextRun attributes reflect current run, so null the values out
+        sendEvent(name: "nextRunStartTimestamp", value: null)
+        sendEvent(name: "nextRunStartTimeStr", value: null) 
+        sendEvent(name: "nextRunSecsUntilStart", value: null) 
+        sendEvent(name: "nextRunDuration", value: null) 
+        sendEvent(name: "nextRunDurationStr", value: null) 
+        
+        // set current run attributes
+        sendEvent(name: "currentRunDuration", value: relay.run) 
+        sendEvent(name: "currentRunDurationStr", value: convertSecstoSimpleStr(relay.run)) 
+    }
+    
+    state.relay = relay.relay        // Physical zone number
+    state.name = relay.name
+    state.timestr = relay.timestr    // Next time this zone will water in a friendly string format
+    state.time = relay.time          // Number of seconds until the next programmed run. Value will be 1 if a run is in progress
+    state.run = relay.run            // Length of next run time. If a run is in progress value will indicate number of seconds remaining.
+}
+
+def httpGetExec(suffix)
+{
+    logDebug("Hunter Hydrawise Zone: httpGetExec(${suffix})")
+    
+    try
+    {
+        getString = "https://api.hydrawise.com/api/v1/" + suffix
+        httpGet(getString.replaceAll(' ', '%20'))
+        { resp ->
+            if (resp.data)
+            {
+                logDebug("resp.data = ${resp.data}")
+                return resp.data
+            }
+        }
+    }
+    catch (Exception e)
+    {
+        log.warn "Hunter Hydrawise Zone httpGetExec() failed: ${e.message}"
+    }
+}
+
+def convertMStoTimeStr(int millisecondsToConvert) {
+    long hours = TimeUnit.MILLISECONDS.toHours(millisecondsToConvert)
+    long minutes = TimeUnit.MILLISECONDS.toMinutes(millisecondsToConvert) % TimeUnit.HOURS.toMinutes(1)
+    long seconds = TimeUnit.MILLISECONDS.toSeconds(millisecondsToConvert) % TimeUnit.MINUTES.toSeconds(1)
+
+    if (hours == 0) return String.format("%02d:%02d", Math.abs(minutes), Math.abs(seconds))
+    else return String.format("%02d:%02d:%02d", Math.abs(hours), Math.abs(minutes), Math.abs(seconds))
+}
+
+def convertMStoSimpleStr(int millisecondsToConvert) {
+    int secs = millisecondsToConvert * 1000
+    int mins = secs / 60    // round to nearest whole number of minutes
+    if (secs < 60) return (secs == 1) ? "1 sec" : "${secs} secs"
+    else return (mins == 1) ? "1 min" : "${mins} mins"
+}
+
+def convertSecstoSimpleStr(int secondsToConvert) {
+    int mins = secondsToConvert / 60    // round to nearest whole number of minutes
+    if (secondsToConvert < 60) return (secondsToConvert == 1) ? "1 sec" : "${secondsToConvert} secs"
+    else return (mins == 1) ? "1 min" : "${mins} mins"
+}
