@@ -10,21 +10,21 @@
       "id": "c593dbb0-af98-42bc-8b84-a2218f225fd7",
       "name": "Hunter Hydrawise Controller",
       "namespace": "tomw",
-      "location": "https://raw.githubusercontent.com/tomwpublic/hubitat_hydrawise/main/Hunter Hydrawise Controller",
+      "location": "https://raw.githubusercontent.com/tomwpublic/hubitat_hydrawise/main/Hunter_Hydrawise_Controller",
       "required": true
     },
     {
       "id": "5f0e0ba6-f4e1-4179-b082-683ec34d6260",
       "name": "Hunter Hydrawise System",
       "namespace": "tomw",
-      "location": "https://raw.githubusercontent.com/tomwpublic/hubitat_hydrawise/main/Hunter Hydrawise System",
+      "location": "https://raw.githubusercontent.com/tomwpublic/hubitat_hydrawise/main/Hunter_Hydrawise_System",
       "required": true
     },
     {
       "id": "66f24c98-4145-48f5-ba3f-f632fd2c2594",
       "name": "Hunter Hydrawise Zone",
       "namespace": "tomw",
-      "location": "https://raw.githubusercontent.com/tomwpublic/hubitat_hydrawise/main/Hunter Hydrawise Zone",
+      "location": "https://raw.githubusercontent.com/tomwpublic/hubitat_hydrawise/main/Hunter_Hydrawise_Zone",
       "required": true
     }
   ],
