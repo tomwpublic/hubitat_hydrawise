@@ -18,6 +18,7 @@ limitations under the License.
 
 Change history:
 
+1.0.1 - @tomw - Added unsuspendZone() command
 1.0.0 - @tomw and @JustinL - Initial release
 
  */
@@ -29,8 +30,9 @@ metadata
         capability "Configuration"
         capability "Refresh"
         capability "Valve"
-        command "runZone", ["number"]
-        command "suspendZone", ["string"]                    // format: yyyy-mm-dd
+        command "runZone", ["secondsToRun"]
+        command "suspendZone", ["suspendDateStr"]          // format: yyyy-mm-dd
+        command "unsuspendZone"
         attribute "currentRunDurationLeft", "number"       // relay.run when run is in progress
         attribute "currentRunDurationLeftStr", "string"    // relay.run in friendly string format when run is in progress
         attribute "nextRunStartTimestamp", "string"        // relay.time, converted to timestamp, when run is NOT in progress
@@ -182,8 +184,20 @@ def suspendZone(suspendDateStr)
     def pattern = "yyyy-MM-dd"
     def date = Date.parse(pattern, suspendDateStr)
     
+    doSuspendZone((date.getTime()/1000).toInteger())
+}
+
+def unsuspendZone()
+{
+    logDebug("Hunter Hydrawise Zone: unsuspendZone()")
+    
+    doSuspendZone(((new Date()).getTime()/1000).toInteger())
+}
+
+def doSuspendZone(ts)
+{
     // suspend zone
-    def suffix = "setzone.php?action=suspend&relay_id=${relay_id}&period_id=999&custom=${date.getTime()}&api_key=${api_key}"
+    def suffix = "setzone.php?action=suspend&relay_id=${relay_id}&period_id=999&custom=${ts}&api_key=${api_key}"
     if(controller_id)
     {
         suffix += "&controller_id=${controller_id}"
