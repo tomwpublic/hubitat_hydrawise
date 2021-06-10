@@ -2,7 +2,7 @@
 {
   "packageName": "hubitat_hydrawise",
   "author": "tomw",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "minimumHEVersion": "2.1.9",
   "dateReleased": "2020-06-20",
   "drivers": [
@@ -29,7 +29,7 @@
     }
   ],
   "licenseFile": "https://raw.githubusercontent.com/tomwpublic/hubitat_hydrawise/main/LICENSE",
-  "releaseNotes": "1.0.0 - @tomw and @JustinL - Initial release.",
+  "releaseNotes": "1.0.1 - @tomw - Added unsuspendZone() command\n1.0.0 - @tomw and @JustinL - Initial release.",
   "documentationLink": "https://github.com/tomwpublic/hubitat_hydrawise/blob/main/README.md",
   "communityLink": "https://community.hubitat.com/t/collaboration-on-developing-a-hunter-hyrdrawise-irrigation-app-driver/38565/15"
 }
