@@ -18,6 +18,7 @@ limitations under the License.
 
 Change history:
 
+1.0.2 - @tomw - Added capability "Actuator" to allow running custom commands in Rule Machine
 1.0.0 - @tomw and @JustinL - Initial release
 
  */
@@ -26,6 +27,7 @@ metadata
 {
     definition(name: "Hunter Hydrawise Controller", namespace: "tomw", author: "tomw, lnjustin", importUrl: "")
     {
+        capability "Actuator"
         capability "Configuration"
         capability "Refresh"
         
