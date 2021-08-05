@@ -18,8 +18,9 @@ limitations under the License.
 
 Change history:
 
-1.0.2 - @tomw - Added capability "Actuator" to allow running custom commands in Rule Machine
-1.0.0 - @tomw and @JustinL - Initial release
+1.0.3 - tomw - Fix broken suspendAllZones()
+1.0.2 - tomw - Added capability "Actuator" to allow running custom commands in Rule Machine
+1.0.0 - tomw and JustinL - Initial release
 
  */
 
@@ -217,10 +218,10 @@ def suspendAllZones(suspendDateStr) {
     logDebug("Hunter Hydrawise Controller: suspendAllZones()")
         
     def pattern = "yyyy-MM-dd"
-    def date = Date.parse(pattern, suspendDateStr)
+    def date = (Date.parse(pattern, suspendDateStr)?.getTime()/1000)?.toInteger()
     
     // suspend zone
-    def suffix = "setzone.php?action=suspendall&period_id=999&custom=${date.getTime()}&api_key=${api_key}"
+    def suffix = "setzone.php?action=suspendall&period_id=999&custom=${date}&api_key=${api_key}"
     if(controller_id)
     {
         suffix += "&controller_id=${controller_id}"
