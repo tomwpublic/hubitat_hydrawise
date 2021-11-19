@@ -73,6 +73,7 @@ def configure()
     logDebug("Hunter Hydrawise Controller: configure()")
     
     unschedule()
+    deleteChildren()
     state.clear()
     
     refresh()
