@@ -64,8 +64,6 @@ def logDebug(msg)
 def updated()
 {
     logDebug("Hunter Hydrawise Controller: updated()")
-
-    configure()
 }
 
 def configure()
