@@ -77,7 +77,7 @@ def refresh()
 def updated()
 {
     logDebug("Hunter Hydrawise System: updated()")
-    configure()
+   
 }
 
 def uninstalled()
