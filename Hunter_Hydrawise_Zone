@@ -18,8 +18,9 @@ limitations under the License.
 
 Change history:
 
-1.0.1 - @tomw - Added unsuspendZone() command
-1.0.0 - @tomw and @JustinL - Initial release
+1.0.4 - skulik22 - Reliability improvements in parse_statusschedule and updateRelayState
+1.0.1 - tomw - Added unsuspendZone() command
+1.0.0 - tomw and JustinL - Initial release
 
  */
 
@@ -127,12 +128,9 @@ def parse_statusschedule(resp)
             updateRelayState(relay)
             return
         }
-        else
-        {
-            logDebug("${relay_id} not found")
-            return
-        }
     }
+    
+    logDebug("${relay_id} not found")
 }
 
 def close()
@@ -217,10 +215,10 @@ def updateRelayState(relay)
     if (relay.time != 1) {    // zone not running
         logDebug("Hunter Hydrawise Zone: updating next run attribute")
                 
-         if (device.currentValue('valve') == "open") {
+         if (device.currentValue('valve') != "closed") {
             // Zone not running but valve state being open means the zone was stopped from the cloud
 	        // So update relay state in HE to reflect the value being closed. Best we can do is assume the zone just stopped now.
-            sendEvent(name: "valve", value: "close")
+            sendEvent(name: "valve", value: "closed")
         }
         
         Date nextRunStartTimestamp = new Date()
@@ -239,7 +237,7 @@ def updateRelayState(relay)
     }
     else if (relay.time == 1) {
         
-        if (device.currentValue('valve') == "closed") {
+        if (device.currentValue('valve') != "open") {
                // zone just started from cloud, so update valve status in HE to reflect open. Best we can do is assume the zone just started now.
             sendEvent(name: "valve", value: "open")
         }
