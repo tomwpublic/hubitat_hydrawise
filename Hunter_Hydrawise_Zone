@@ -18,8 +18,9 @@ limitations under the License.
 
 Change history:
 
-1.0.1 - @tomw - Added unsuspendZone() command
-1.0.0 - @tomw and @JustinL - Initial release
+1.0.4 - skulik22 - Reliability improvements in parse_statusschedule and updateRelayState
+1.0.1 - tomw - Added unsuspendZone() command
+1.0.0 - tomw and JustinL - Initial release
 
  */
 
